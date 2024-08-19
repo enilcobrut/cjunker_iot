@@ -7,14 +7,16 @@ machines=[
     :ip => "192.168.56.110",
     :box => "generic/ubuntu2304",
     :ram => 2048,
-    :cpu => 2
+    :cpu => 2,
+    :script => "./scripts/trofidalS.sh"
   },
   {
     :hostname => "trofidalSW",
     :ip => "192.168.56.111",
     :box => "generic/ubuntu2304",
     :ram => 2048,
-    :cpu => 2
+    :cpu => 2,
+    :script => "./scripts/trofidalSW.sh"
   }
 ]
 
@@ -24,7 +26,6 @@ machines=[
 # you're doing.
 Vagrant.configure("2") do |config|
   config.vm.box_check_update = false
-  config.vm.provision "shell", inline: "echo Hello"
   # Create a forwarded port mapping which allows access to a specific port
   # within the machine from a port on the host machine. In the example below,
   # accessing "localhost:8080" will access port 80 on the guest machine.
@@ -55,6 +56,7 @@ Vagrant.configure("2") do |config|
         vb.cpus = machine[:cpu]
         vb.vmname = machine[:hostname]
       end
+      node.vm.provision "shell", path: machine[:script]
     end
   end
 end
