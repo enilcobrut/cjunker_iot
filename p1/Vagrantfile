@@ -1,24 +1,44 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-machines=[
-  {
-    :hostname => "trofidalS",
-    :ip => "192.168.56.110",
-    :box => "generic/ubuntu2304",
-    :ram => 2048,
-    :cpu => 2,
-    :script => "./scripts/trofidalS.sh"
-  },
+# Server configuration
+server_config = {
+  hostname: "trofidalS",
+  ip: "192.168.56.110",
+  memory: 1024,
+  cpu: 1
+}
+
+server_script = <<-SHELL
+    curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--bind-address=#{server_config[:ip]} --flannel-iface=eth1" sh -
+    echo "Waiting for k3s to be ready..."
+    until kubectl get nodes >/dev/null 2>&1; do
+        sleep 1
+        echo "Waiting for K3s..."
+    done
+
+    echo "K3s is ready!"
+    cp /var/lib/rancher/k3s/server/token /vagrant
+    cp /etc/rancher/k3s/k3s.yaml /vagrant
+    echo "K3s Server is ready."
+    SHELL
+
+
+# Agent of the server
+agents=[
   {
     :hostname => "trofidalSW",
     :ip => "192.168.56.111",
-    :box => "generic/ubuntu2304",
-    :ram => 2048,
-    :cpu => 2,
-    :script => "./scripts/trofidalSW.sh"
+    :memory => 512,
+    :cpu => 1,
   }
 ]
+
+agent_script = <<-SHELL
+    curl -sfL https://get.k3s.io | K3S_TOKEN_FILE=/vagrant/token K3S_URL=https://#{server_config[:ip]}:6443 INSTALL_K3S_EXEC="--flannel-iface=eth1" sh -
+    echo "K3s Agent is ready."
+SHELL
+
 
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
@@ -26,37 +46,33 @@ machines=[
 # you're doing.
 Vagrant.configure("2") do |config|
   config.vm.box_check_update = false
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine. In the example below,
-  # accessing "localhost:8080" will access port 80 on the guest machine.
-  # NOTE: This will enable public access to the opened port
-  # config.vm.network "forwarded_port", guest: 80, host: 8080
+  #machine to be used for any vm we create
+  config.vm.box = "generic/alpine312"
+  
+  # Server VM
+  config.vm.define server_config[:hostname], primary: true do |controller|
+    controller.vm.network "private_network", ip: server_config[:ip]
+    controller.vm.synced_folder "./shared", "/vagrant", type:"virtualbox"
+    controller.vm.hostname = server_config[:hostname]
+    controller.vm.provider "virtualbox" do |hv|
+      hv.memory = server_config[:memory]
+      hv.cpus = server_config[:cpu]
+      hv.name = server_config[:hostname]
+    end
+    controller.vm.provision "shell", privileged: true, inline: server_script
+  end
 
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine and only allow access
-  # via 127.0.0.1 to disable public access
-  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
-
-  # Create a private network, which allows host-only access to the machine
-  # using a specific IP.
-  # config.vm.network "private_network", ip: "192.168.33.10"
-
-  # Create a public network, which generally matched to bridged network.
-  # Bridged networks make the machine appear as another physical device on
-  # your network.
-  # config.vm.network "public_network"
-
-  machines.each do |machine|
-    config.vm.define machine[:hostname] do |node|
-      node.vm.box = machine[:box]
-      node.vm.hostname = machine[:hostname]
-      node.vm.network "private_network", ip: machine[:ip]
-      node.vm.provider "hyperv" do |vb|
-        vb.memory = machine[:ram]
-        vb.cpus = machine[:cpu]
-        vb.vmname = machine[:hostname]
+  agents.each do |agent|
+    config.vm.define agent[:hostname] do |node|
+      node.vm.network "private_network", ip: agent[:ip]
+      node.vm.synced_folder "./shared", "/vagrant", type:"virtualbox"
+      node.vm.hostname = agent[:hostname]
+      node.vm.provider "virtualbox" do |hv|
+        hv.memory = agent[:memory]
+        hv.cpus = agent[:cpu]
+        hv.name = agent[:hostname]
       end
-      node.vm.provision "shell", path: machine[:script]
+      node.vm.provision "shell", privileged: true, inline: agent_script
     end
   end
 end
