@@ -22,9 +22,17 @@ server_script = <<-SHELL
     echo "K3s is ready!"
     cp /var/lib/rancher/k3s/server/token /vagrant
     cp /etc/rancher/k3s/k3s.yaml /vagrant
-    echo "K3s Server is ready."
+    echo "Server token copied."
+    echo "alias k='kubectl'" >> /home/vagrant/.bashrc
+    source /home/vagrant/.bashrc
+    echo "Kubectl alias set"
+    echo "Setting broadcast address for eth1..."
+    sudo ip addr flush dev eth1
+    sudo ip addr add 192.168.56.110/24 broadcast 192.168.56.255 dev eth1
+    sudo ip link set eth1 up
+    echo "Broadcast address set to 192.168.56.255"
+    echo "K3s Server Ready" 
     SHELL
-
 
 # Agent of the server
 agents=[
@@ -41,6 +49,15 @@ agent_script = <<-SHELL
     export K3S_TOKEN_FILE=/vagrant/token
     export INSTALL_K3S_EXEC="agent --server https://#{server_config[:ip]}:6443 --node-ip=192.168.56.111 --flannel-iface=eth1"
     curl -sfL https://get.k3s.io | sh -
+    echo "Agent token copied."
+    echo "alias k='kubectl'" >> /home/vagrant/.bashrc
+    source /home/vagrant/.bashrc
+    echo "Kubectl alias set"
+    echo "Setting broadcast address for eth1..."
+    sudo ip addr flush dev eth1
+    sudo ip addr add 192.168.56.111/24 broadcast 192.168.56.255 dev eth1
+    sudo ip link set eth1 up
+    echo "Broadcast address set to 192.168.56.255"
     echo "K3s Agent is ready."
 SHELL
 
