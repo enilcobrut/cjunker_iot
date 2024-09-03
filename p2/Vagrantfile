@@ -32,18 +32,26 @@ server_script = <<-SHELL
     echo "Broadcast address set to 192.168.56.255"
     echo "K3s Server Ready"
 
-    echo "Waiting for the 'default' namespace to be available..."
-    until kubectl get namespace default >/dev/null 2>&1; do
+    echo "Waiting for the 'default' namespace to be available and ready..."
+    until kubectl get namespace default >/dev/null 2>&1 && kubectl wait --for=condition=Ready --timeout=60s pod -l k8s-app=kube-dns -n kube-system; do
         sleep 1
-        echo "Waiting for the 'default' namespace..."
+        echo "Waiting for the 'default' namespace and core components to be ready..."
     done
 
     kubectl create configmap app1-html --from-file=/vagrant/app1/app1.html
     kubectl create configmap app2-html --from-file=/vagrant/app2/app2.html
     kubectl create configmap app3-html --from-file=/vagrant/app3/app3.html
     kubectl apply -f /vagrant/deployment.yaml
-    echo "Applications ready"
+    
+    echo "Waiting for all pods to be in 'Running' state..."
+    until [ $(kubectl get pods --no-headers -o custom-columns=":status.phase" | grep -v "Running" | wc -l) -eq 0 ]; do
+        sleep 2
+        echo "Waiting for all pods to be 'Running'..."
+    done
+
+    echo "All pods are running!"
     SHELL
+
 
 Vagrant.configure("2") do |config|
   config.vm.box_check_update = false
