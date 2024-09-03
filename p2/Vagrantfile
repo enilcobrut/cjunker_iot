@@ -30,7 +30,19 @@ server_script = <<-SHELL
     sudo ip addr add 192.168.56.110/24 broadcast 192.168.56.255 dev eth1
     sudo ip link set eth1 up
     echo "Broadcast address set to 192.168.56.255"
-    echo "K3s Server Ready" 
+    echo "K3s Server Ready"
+
+    echo "Waiting for the 'default' namespace to be available..."
+    until kubectl get namespace default >/dev/null 2>&1; do
+        sleep 1
+        echo "Waiting for the 'default' namespace..."
+    done
+
+    kubectl create configmap app1-html --from-file=/vagrant/app1/app1.html
+    kubectl create configmap app2-html --from-file=/vagrant/app2/app2.html
+    kubectl create configmap app3-html --from-file=/vagrant/app3/app3.html
+    kubectl apply -f /vagrant/deployment.yaml
+    echo "Applications ready"
     SHELL
 
 Vagrant.configure("2") do |config|
