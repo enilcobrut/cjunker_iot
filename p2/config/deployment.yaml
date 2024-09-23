@@ -64,6 +64,8 @@ spec:
           - key: app2.html
             path: index.html
 
+---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -149,8 +151,8 @@ spec:
     - host: app1.com
       http:
         paths:
-        - path: "/"
-          pathType: Prefix
+        - pathType: Prefix
+          path: "/"
           backend:
             service:
               name: app1-service
@@ -159,17 +161,28 @@ spec:
     - host: app2.com
       http:
         paths:
-        - path: "/"
-          pathType: Prefix
+        - pathType: Prefix
+          path: "/"
           backend:
             service:
               name: app2-service
               port:
                 number: 80
-    - http:
+    - host: app3.com
+      http:
         paths:
-        - path: "/"
-          pathType: Prefix
+        - pathType: Prefix
+          path: "/"
+          backend:
+            service:
+              name: app3-service
+              port:
+                number: 80
+    - host: ""
+      http:
+        paths:
+        - pathType: Prefix
+          path: "/"
           backend:
             service:
               name: app3-service
