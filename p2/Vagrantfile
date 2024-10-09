@@ -1,11 +1,8 @@
-# -*- mode: ruby -*-
-# vi: set ft=ruby :
-
 # Server configuration
 server_config = {
   hostname: "trofidalS",
   ip: "192.168.56.110",
-  memory: 1024,
+  memory: 4096,
   cpu: 1
 }
 
@@ -21,10 +18,11 @@ server_script = <<-SHELL
 
     echo "K3s is ready!"
     cp /var/lib/rancher/k3s/server/token /vagrant
+    cp /var/lib/rancher/k3s/server/node-token /vagrant
     cp /etc/rancher/k3s/k3s.yaml /vagrant
     echo "Server token copied."
+    echo "Node Server token copied."
     echo "alias k='kubectl'" >> /home/vagrant/.bashrc
-    alias k='kubectl'
     source /home/vagrant/.bashrc
     echo "Kubectl alias set"
     echo "Setting broadcast address for eth1..."
@@ -32,51 +30,36 @@ server_script = <<-SHELL
     sudo ip addr add 192.168.56.110/24 broadcast 192.168.56.255 dev eth1
     sudo ip link set eth1 up
     echo "Broadcast address set to 192.168.56.255"
-    echo "K3s Server Ready" 
+    echo "K3s Server Ready"
+
+    echo "Waiting for the 'default' namespace to be available and ready..."
+    until kubectl get namespace default >/dev/null 2>&1 && kubectl wait --for=condition=Ready --timeout=60s pod -l k8s-app=kube-dns -n kube-system; do
+        sleep 1
+        echo "Waiting for the 'default' namespace and core components to be ready..."
+    done
+
+    kubectl create configmap app1-html --from-file=/vagrant/app1/app1.html
+    kubectl create configmap app2-html --from-file=/vagrant/app2/app2.html
+    kubectl create configmap app3-html --from-file=/vagrant/app3/app3.html
+    kubectl apply -f /vagrant/deployment.yaml
+    
+    echo "Waiting for all pods to be in 'Running' state..."
+    until [ $(kubectl get pods --no-headers -o custom-columns=":status.phase" | grep -v "Running" | wc -l) -eq 0 ]; do
+        sleep 2
+        echo "Waiting for all pods to be 'Running'..."
+    done
+
+    echo "All pods are running!"
     SHELL
 
-# Agent of the server
-agents=[
-  {
-    :hostname => "trofidalSW",
-    :ip => "192.168.56.111",
-    :memory => 512,
-    :cpu => 1,
-  }
-]
 
-agent_script = <<-SHELL
-    export K3S_URL=
-    export K3S_TOKEN_FILE=/vagrant/token
-    export INSTALL_K3S_EXEC="agent --server https://#{server_config[:ip]}:6443 --node-ip=192.168.56.111 --flannel-iface=eth1"
-    curl -sfL https://get.k3s.io | sh -
-    echo "Agent token copied."
-    echo "alias k='kubectl'" >> /home/vagrant/.bashrc
-    alias k='kubectl'
-    source /home/vagrant/.bashrc
-    echo "Kubectl alias set"
-    echo "Setting broadcast address for eth1..."
-    sudo ip addr flush dev eth1
-    sudo ip addr add 192.168.56.111/24 broadcast 192.168.56.255 dev eth1
-    sudo ip link set eth1 up
-    echo "Broadcast address set to 192.168.56.255"
-    echo "K3s Agent is ready."
-SHELL
-
-
-# All Vagrant configuration is done below. The "2" in Vagrant.configure
-# configures the configuration version (we support older styles for
-# backwards compatibility). Please don't change it unless you know what
-# you're doing.
 Vagrant.configure("2") do |config|
   config.vm.box_check_update = false
-  #machine to be used for any vm we create
   config.vm.box = "generic/alpine312"
-  
-  # Server VM
+
   config.vm.define server_config[:hostname], primary: true do |controller|
     controller.vm.network "private_network", ip: server_config[:ip]
-    controller.vm.synced_folder "./shared", "/vagrant", type:"virtualbox"
+    controller.vm.synced_folder "./config", "/vagrant", type:"virtualbox"
     controller.vm.hostname = server_config[:hostname]
     controller.vm.provider "virtualbox" do |hv|
       hv.memory = server_config[:memory]
@@ -84,19 +67,5 @@ Vagrant.configure("2") do |config|
       hv.name = server_config[:hostname]
     end
     controller.vm.provision "shell", inline: server_script
-  end
-
-  agents.each do |agent|
-    config.vm.define agent[:hostname] do |node|
-      node.vm.network "private_network", ip: agent[:ip]
-      node.vm.synced_folder "./shared", "/vagrant", type:"virtualbox"
-      node.vm.hostname = agent[:hostname]
-      node.vm.provider "virtualbox" do |hv|
-        hv.memory = agent[:memory]
-        hv.cpus = agent[:cpu]
-        hv.name = agent[:hostname]
-      end
-      node.vm.provision "shell", inline: agent_script
-    end
   end
 end
