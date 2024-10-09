@@ -9,3 +9,6 @@ Commands:
 kubectl get nodes -o wide
 kubectl get all
 curl -H "Host:app2.com" 192.168.56.110
+
+article medium argocd
+https://medium.com/@mahdad.ghasemian/gitops-automation-deploying-a-microservices-app-to-kubernetes-using-gitlab-and-argocd-fdf788eaed51
