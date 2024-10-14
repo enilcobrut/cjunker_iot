@@ -22,8 +22,7 @@ server_script = <<-SHELL
     cp /etc/rancher/k3s/k3s.yaml /vagrant
     echo "Server token copied."
     echo "Node Server token copied."
-    echo "alias k='kubectl'" >> /home/vagrant/.bashrc
-    source /home/vagrant/.bashrc
+    echo "alias k='kubectl'" | sudo tee -a /etc/profile
     echo "Kubectl alias set"
     echo "Setting broadcast address for eth1..."
     sudo ip addr flush dev eth1
