@@ -1,30 +1,74 @@
-sudo systemctl start docker
-k3d cluster start mycluster
+## K3d vs Argo CD
+
+### K3d:
+- Runs lightweight Kubernetes clusters inside Docker containers.
+- Quick and easy way to set up Kubernetes clusters on your local machine for development and testing.
+
+### Argo CD:
+- Automates app deployments in Kubernetes using Git as the source of truth.
+- Keeps your apps in sync with the desired state defined in a Git repository.
+
+### Key Differences:
+
+#### Main Focus:
+- **K3d**: Setting up and managing Kubernetes clusters locally.
+- **Argo CD**: Deploying and syncing apps in those Kubernetes clusters.
+
+#### Role in Workflow:
+- **K3d**: Creates the Kubernetes environment.
+- **Argo CD**: Manages apps inside the Kubernetes environment.
+
+---
+
+## Pods vs Namespaces
+
+### Pod:
+- The smallest unit in Kubernetes, usually running one or more containers.
+- To run applications.
+
+### Namespace:
+- A way to group and separate resources in a Kubernetes cluster.
+- To organize resources and prevent naming conflicts.
+
+### Key Differences:
+
+#### Function:
+- Runs the actual app.
+- Organizes and separates pods and other resources.
+
+#### Relationship:
+- **Pods** live inside **namespaces**.
+- **Namespaces** contain multiple resources, including pods.
+
+---
+
+#### install and setup environment
 
 
-check the nodes
+`./setup.sh`
 
-kubectl get nodes 
-
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-kubectl port-forward svc/wil-playground-service -n dev 8888:8888
-argocd login localhost:8080
-kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d
-xN7gDEABtsyYiqrR
-
-argocd app get wil-playground
+#### create argocd cluster , the namespaces:
 
 
-argocd app sync wil-playground
-argocd app set wil-playground --path configs
+`./start.sh`
 
-argocd app sync wil-playground
-argocd app get wil-playground
+### how to check the namespaces (the script alrdy do it) : 
 
+`kubectl get ns".`
 
-kubectl run curl-test --image=radial/busyboxplus:curl -i --tty --rm
-curl wil-playground-service.dev.svc.cluster.local:8888
+### check if there is at least 1 pod in the "dev" namespace : 
 
 
-curl http://172.18.0.2:30000/
+`kubectl get pods -n dev`
 
+#### clone the app and change version (just change the var APP_VERSION in the script)
+
+`./update_version`
+
+### curl the app:
+
+`curl http://localhost:8888/`
+
+#### Delete the k3d cluster 
+
+`k3d cluster delete cjunkercluster`
